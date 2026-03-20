@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Consola Total</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="RC+IRC" />
+  <meta name="theme-color" content="#0f6fa6" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #ffffff;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --accent: #0f6fa6;
+      --accent-dark: #0a5a8a;
+      --accent-soft: rgba(15,111,166,0.09);
+      --border: rgba(0,0,0,0.06);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 4px 16px rgba(0,0,0,0.08);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* ── AUTH ── */
+    #auth-screen {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: calc(var(--sat) + 32px) 24px calc(var(--sab) + 32px);
+      background: linear-gradient(160deg, #0f6fa6 0%, #0a4a75 100%);
+    }
+    .auth-logos { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; }
+    .auth-logos img { height: 52px; object-fit: contain; }
+    .auth-title { color: #fff; font-size: 22px; font-weight: 800; letter-spacing: 0.04em; margin: 0 0 6px; text-align: center; }
+    .auth-sub { color: rgba(255,255,255,0.7); font-size: 13px; margin: 0 0 36px; text-align: center; }
+    .btn-google {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; color: #1a1a2e;
+      border: none; border-radius: 14px; padding: 14px 24px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      transition: transform .15s, box-shadow .15s;
+      min-height: 52px;
+    }
+    .btn-google:active { transform: scale(0.97); }
+    #auth-error { margin-top: 20px; color: #fecaca; font-size: 13px; text-align: center; display: none; }
+    #auth-loading { margin-top: 20px; color: rgba(255,255,255,0.7); font-size: 13px; display: none; align-items: center; gap: 8px; }
+
+    /* ── APP ── */
+    #app-screen { display: none; flex-direction: column; min-height: 100dvh; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      background: var(--accent);
+      padding: calc(var(--sat) + 10px) calc(var(--sar) + 14px) 10px calc(var(--sal) + 14px);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .topbar-logos { display: flex; gap: 8px; align-items: center; }
+    .topbar-logos img { height: 36px; object-fit: contain; }
+    .topbar-title { flex: 1; min-width: 0; }
+    .topbar-title h1 { margin: 0; color: #fff; font-size: 14px; font-weight: 800; letter-spacing: 0.03em; }
+    .topbar-title p { margin: 1px 0 0; color: rgba(255,255,255,0.65); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .topbar-user { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); object-fit: cover; background: rgba(255,255,255,0.2); }
+    .btn-logout { background: rgba(255,255,255,0.15); border: none; border-radius: 8px; color: #fff; font-size: 11px; padding: 5px 8px; cursor: pointer; font-weight: 600; }
+
+    .toolbar {
+      padding: 10px calc(var(--sar) + 12px) 10px calc(var(--sal) + 12px);
+      background: var(--bg);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .search {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .search input { flex: 1; border: none; outline: none; font-size: 15px; background: transparent; color: var(--text); }
+    .search input::placeholder { color: #aaa; }
+    .search-clear { background: none; border: none; cursor: pointer; color: #aaa; font-size: 16px; padding: 2px 4px; display: none; }
+
+    .filters-row { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+    .filters-row::-webkit-scrollbar { display: none; }
+    .pill {
+      flex-shrink: 0; border: 1.5px solid var(--border); background: var(--card);
+      border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 500;
+      cursor: pointer; white-space: nowrap; transition: all .15s;
+      min-height: 36px; display: flex; align-items: center;
+    }
+    .pill.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+    .meta-row { display: flex; align-items: center; justify-content: flex-end; padding: 0 calc(var(--sar) + 12px) 4px calc(var(--sal) + 12px); }
+    .meta { color: var(--muted); font-size: 11px; }
+
+    .content {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 0 calc(var(--sar) + 12px) calc(var(--sab) + 80px) calc(var(--sal) + 12px);
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .section-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; border: 1px solid var(--border); }
+    .section-header {
+      color: #fff; padding: 11px 14px; font-weight: 800; font-size: 13px;
+      letter-spacing: 0.02em; display: flex; align-items: center; justify-content: space-between;
+    }
+    /* Colores distintos por sección */
+    .section-header.ruta   { background: #0f6fa6; }
+    .section-header.irc    { background: #1a6b4a; }
+    .section-header.extern { background: #6b4a1a; }
+
+    .section-count { background: rgba(255,255,255,0.2); border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+    .links-list { display: flex; flex-direction: column; }
+    .link-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 14px; border: none;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+      background: transparent; cursor: pointer; text-align: left;
+      min-height: 52px; width: 100%; transition: background .1s;
+      -webkit-user-select: none;
+    }
+    .link-item:last-child { border-bottom: none; }
+    .link-item:active { background: var(--accent-soft); }
+    .link-bullet { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; opacity: 0.7; }
+    .link-bullet.ruta   { background: #0f6fa6; }
+    .link-bullet.irc    { background: #1a6b4a; }
+    .link-bullet.extern { background: #6b4a1a; }
+    .link-text { flex: 1; min-width: 0; }
+    .link-label { font-weight: 700; font-size: 13.5px; line-height: 1.3; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .link-hint { font-size: 11.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .link-arrow { color: #ccc; font-size: 14px; flex-shrink: 0; }
+    .link-item.loading { opacity: 0.45; pointer-events: none; }
+
+    /* Badge externo */
+    .badge-ext { font-size: 9px; font-weight: 700; background: #f59e0b; color: #fff; border-radius: 4px; padding: 1px 4px; margin-left: 4px; vertical-align: middle; flex-shrink: 0; }
+
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); display: none; }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-state p { font-size: 14px; margin: 0; }
+
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-logos">
+    <img src="./logo-irc.png" alt="IRC Inmobiliaria" />
+  </div>
+  <h1 class="auth-title">CONSOLA TOTAL</h1>
+  <p class="auth-sub">RUTA Capital + IRC Inmobiliaria</p>
+  <button class="btn-google" id="btn-login">
+    <svg width="20" height="20" viewBox="0 0 48 48">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+    Ingresar con Google
+  </button>
+  <div id="auth-error">❌ No tienes acceso autorizado.</div>
+  <div id="auth-loading" style="display:none;"><div class="spinner"></div></div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-logos">
+      <img src="./logo-irc.png" alt="IRC" />
+    </div>
+    <div class="topbar-title">
+      <h1>CONSOLA TOTAL</h1>
+      <p>RUTA Capital + IRC Inmobiliaria</p>
+    </div>
+    <div class="topbar-user">
+      <img class="user-avatar" id="user-avatar" src="" alt="usuario" />
+      <button class="btn-logout" id="btn-logout">Salir</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search">
+      <span style="color:#9aa0a6;font-size:14px;">🔎</span>
+      <input id="q" type="search" placeholder="Buscar (EE.FF., IRD3, CMF, Tesorería…)"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <button class="search-clear" id="search-clear">✕</button>
+    </div>
+    <div class="filters-row" id="filters">
+      <div class="pill active" data-filter="ALL">Todo</div>
+      <div class="pill" data-filter="RUTA">RUTA</div>
+      <div class="pill" data-filter="IRC">IRC</div>
+      <div class="pill" data-filter="EXTERNOS">Externos</div>
+    </div>
+  </div>
+  <div class="meta-row"><span class="meta" id="meta">Mostrando 0</span></div>
+
+  <div class="content" id="content">
+    <div class="empty-state" id="empty-state">
+      <div class="icon">🔍</div>
+      <p>Sin resultados para esta búsqueda</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+/* ── CONFIG ── */
+const CONFIG = {
+  GOOGLE_CLIENT_ID: "154544420704-oibq8s4k42898m5rb93e8ccoenv19m1e.apps.googleusercontent.com",
+  ALLOWED_DOMAINS: ["rutacapital.cl", "ircconstructora.cl"],
+  TRACKER_BASE: "https://script.google.com/macros/s/AKfycbziVKYfDUvgQW8kzc_Gf_eDhLpuw4OS_4Jw04-5M2XrWH931IhRlnse0AUicUOJ0vD5/exec",
+};
+
+/* ── SECCIONES ── */
+const SECTIONS = [
+  {
+    id: "ruta-internos", colorClass: "ruta",
+    title: "RUTA · Registros y Reportes Internos",
+    items: [
+      { label:"Formulario Registro de FIPs",                        hint:"Formulario Apps Script",                          url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbxSVRGKdm1q_f-Ll4DPQyRcwBp8YInDGa-l0ef9wdd3DMeNjwMVvQtgZBJB8Xy70__fog/exec?authuser=0",  tags:["RUTA","INTERNOS"] },
+      { label:"Formulario Registro de Aportantes y Aportes",        hint:"Formulario Apps Script",                          url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbz-4gRgANRrl-4S7uLo_9Jbs23XvJMhbRXecJjMe3EW2fCDqPaAG4uAlDoqngUXDU0agw/exec?authuser=0",  tags:["RUTA","INTERNOS"] },
+      { label:"Formulario Registro de Prestamistas y Préstamos",    hint:"Formulario Apps Script",                          url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzCv8PWDzS_0dy2D4C3Tc14OXNteihZo6OmsoCCbF5yqP0C9D3Sq-_AmzUMmW_NPZsgQQ/exec?authuser=0",  tags:["RUTA","INTERNOS"] },
+      { label:"Formulario Registro de Actas Asambleas",             hint:"Formulario Apps Script",                          url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycby-LRQC0CEz9PfCtttB3q8s9zoJfAdCSpNV-8JZibTMQXpbDj6GMRg3Ps5YbyIpLpftQQ/exec?authuser=0",  tags:["RUTA","INTERNOS"] },
+      { label:"Formulario Registro y Envío de EE.FF. FIPs",         hint:"Formulario Apps Script",                          url:"https://script.google.com/macros/s/AKfycbzluXMM4-ev9PwvRpEiGdFecLnP1lr19iUjdkWRyo2_3lrGR-vLtSell203_rRoVL-q/exec?authuser=0",            tags:["RUTA","INTERNOS"] },
+      { label:"CRM INVERSIONISTAS RUTA",                            hint:"Apps Script",                                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbx6Ft8rqg5otsiSQaugCfDP5CfwZkHGYhGHCFH5kam77Re9qg4Bqjk_16FZn7Hi9EdMPg/exec?authuser=0",  tags:["RUTA","INTERNOS"] },
+      { label:"CONCILIADOR FLUJOS INVERSIONISTAS",                  hint:"Apps Script",                                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzr9YAG5orjUO9t3R-JTe4T6G5g0XTvnovcTCVhHzpHAcc4Y4e0Gj7-oavMxD7UXpnZgw/exec?authuser=0", tags:["RUTA","INTERNOS"] },
+      { label:"EVALUACIONES ECONÓMICAS RC",                         hint:"Apps Script",                                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzwJVjdanD2Hfv_AAj2Ns9kfZS55k9PNunRVF_0XmJdgJcH7X27JiIOVFyMa4oUqLqg/exec?authuser=0",   tags:["RUTA","INTERNOS"] },
+      { label:"GENERADOR DE FACTSHEETS",                            hint:"Apps Script",                                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbwNMF0rExp9FnQmLqUstVesmMGrclstWjiB8HBtM1MN6jPXbhLb7y8W_oKAn186bVoF/exec?authuser=0",    tags:["RUTA","INTERNOS"] },
+      { label:"CARTOLAS APORTANTES",                                hint:"Apps Script",                                     url:"https://script.google.com/macros/s/AKfycbzhhHCVkMgPLfuPGpmCpCb-fE6Mee26sWFpSCsUmmAy7Ctdo_muk4NX5wIWF-vzYXdZ/exec?authuser=0",            tags:["RUTA","INTERNOS"] },
+      { label:"PÁGINA DEL APORTANTE",                               hint:"Apps Script",                                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbwKR1HFY25VZMj68zMXuffz7kvqu7Qbs_3sVhXzkaTDn6GQpuAZtDn9_d5CDfoxbQhB/exec?authuser=0",    tags:["RUTA","INTERNOS"] },
+      { label:"CARTOLAS PRESTAMISTAS",                              hint:"Apps Script",                                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbwV6XtHM1E60OeJgqr9dBW4QkKnfSije9VC_0XTCD_kJ-hmIzriupI4tzCiegXPsLlw/exec?authuser=0",    tags:["RUTA","INTERNOS"] },
+      { label:"PÁGINA DEL PRESTAMISTAS",                            hint:"Apps Script",                                     url:"https://script.google.com/macros/s/AKfycbyh-wFxGblRNiKmK8puyUKotOlh160d_xhN2ajtks8xOvaInGTP6pf9mRtZT_zJMJTRDA/exec?authuser=0",           tags:["RUTA","INTERNOS"] },
+      { label:"ENVÍO CAPITAL CALL A APORTANTES",                    hint:"Apps Script",                                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbz05K3pd8E49QWKS6ZHRhtAFMyyYkoB-SI6IkSbcVHHuwuRUBU4IYwi4MnmnYUIoPYF/exec?authuser=0",    tags:["RUTA","INTERNOS"] },
+      { label:"ENVÍO AVISO REPARTO A APORTANTES/PRESTAMISTAS",      hint:"Apps Script",                                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbx7JL5JpyK1mmrR3rWuQrDvExAW7epzgjmOLeqCPVarfrMboOv7vyku5wJy-UlBPZg/exec?authuser=0",      tags:["RUTA","INTERNOS"] },
+    ]
+  },
+  {
+    id: "irc-desarrollos", colorClass: "irc",
+    title: "IRC · Desarrollos",
+    items: [
+      { label:"INGRESO Ventas IRD1_VLF",                   hint:"WebApp Ventas Vista La Florida",      url:"https://script.google.com/macros/s/AKfycbwFFeyYveFRXFKD_5eajYMwPBWhQgcXsRVyTWc4y6Qpu4tSv2o4kB6h7lxafpEeG7xb8g/exec?authuser=0",                                                    tags:["IRC","DESARROLLOS"] },
+      { label:"INGRESO Ventas IRD2_JAA",                   hint:"WebApp Ventas Juan Agustín Alcalde",  url:"https://script.google.com/macros/s/AKfycbzEKqa4qxcytATFCC3efQcijGU63f0UMSop07nPg9F7rPeq8YT9wAwWgFUTUBD-vuX9/exec?authuser=0",                                                     tags:["IRC","DESARROLLOS"] },
+      { label:"INGRESO Ventas IRD3_LGSTCK_CPF",            hint:"WebApp Ventas Logistock CPF",         url:"https://script.google.com/macros/s/AKfycbxV7XGjxz7oi8YmGpFamBVPtc3e9Eqf32H-E5SalLqOb4dGXkYVCyj8jRlXJUzSD34k/exec?authuser=0",                                                    tags:["IRC","DESARROLLOS"] },
+      { label:"INGRESO Ventas IRD4_EC",                    hint:"WebApp Ventas Edificio Carrera",      url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbyWE8F60JZBtusSH-hYA02UIW900XoC5XIHw1NbHjTmDBBisRxjgaaOlNtZtyiaEnS-0g/exec?authuser=0",                                  tags:["IRC","DESARROLLOS"] },
+      { label:"INGRESO Ventas IRD6_AB",                    hint:"WebApp Ventas Distrito Barroso",      url:"https://script.google.com/macros/s/AKfycbx31zA2S7uOAHMRzJwLH7NgU4v4tGywUCFbEbO4_RGY1MHRfCRjtgh21jY9O1qOc3HTnQ/exec?authuser=0",                                                   tags:["IRC","DESARROLLOS"] },
+      { label:"INGRESO Ventas IRD7_LGSTCK_KM17",           hint:"WebApp Ventas Logistock KM17",        url:"https://script.google.com/macros/s/AKfycbyrHpke43uSvfdnKarEPlC9Vy7Q5XFND3dRs4cHxNJ96hHfvX8u0Si9ligOC-L2EL4e4Q/exec?authuser=0",                                                   tags:["IRC","DESARROLLOS"] },
+      { label:"Sistema de POSTVENTA IRC/RUTA",             hint:"WebApp Postventa",                    url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbz9r2z_aNEegQ5QQ9OHBq_QJxR81jTHhDzgtdv69U9zPGRtS0C3RwSd4mHb0fap2J2b/exec?authuser=0",                                    tags:["IRC","DESARROLLOS"] },
+      { label:"Registro Pago - Cuentas Básicas Proyectos", hint:"WebApp Cuentas Básicas IRC",          url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzQokU2O-XELtqJ9RDhi-NHbsUOwDndwiXwe5vACxzzuM_zT8tdLUvPdPbNto_QeqTp/exec",                                               tags:["IRC","DESARROLLOS"] },
+      { label:"CTRL. PPTO. IRD1 - Vista La Florida",       hint:"Google Sheet",                        url:"https://docs.google.com/spreadsheets/d/1YTp6gZnyfSIR_MTRFB-zmVOVU8WrIoyZhyPDx64rMRU/edit?gid=1970529769#gid=1970529769",                                                            tags:["IRC","SHEETS","PPTO","EXTERNOS"] },
+      { label:"CTRL. PPTO. IRD2 - Juan Agustín",           hint:"Google Sheet",                        url:"https://docs.google.com/spreadsheets/d/1LPekDMr-p_zQlgrY5cobt6jXR-f2FZuETvOUkSLoTTo/edit?gid=363827626#gid=363827626",                                                             tags:["IRC","SHEETS","PPTO","EXTERNOS"] },
+      { label:"CTRL. PPTO. IRD3 - LGSTCK_CPF",             hint:"Google Sheet",                        url:"https://docs.google.com/spreadsheets/d/1iFunz9sGUJQw2J5IH8LZEQQdu0lRA6YYFa_QzqqUdLY/edit?gid=25940783#gid=25940783",                                                               tags:["IRC","SHEETS","PPTO","EXTERNOS"] },
+      { label:"CTRL. PPTO. IRD4 - Edificio Carrera",       hint:"Google Sheet",                        url:"https://docs.google.com/spreadsheets/d/1EP8pp9w8KRkuFrrASSZsVoNQ2tWCB01-uBxtD7S8ELU/edit?gid=1500317514#gid=1500317514",                                                            tags:["IRC","SHEETS","PPTO","EXTERNOS"] },
+      { label:"CTRL. PPTO. IRD6 - Distrito Barroso",       hint:"Google Sheet",                        url:"https://docs.google.com/spreadsheets/d/1vhBpoqgQGG6Kj8aloc-P3N1APFvevaKNXxS7f5lLz70/edit?gid=1270794699#gid=1270794699",                                                            tags:["IRC","SHEETS","PPTO","EXTERNOS"] },
+      { label:"CTRL. PPTO. IRD7 - LGSTCK_KM17",            hint:"Google Sheet",                        url:"https://docs.google.com/spreadsheets/d/1pUgVIJniZL3c0sHAqCBGfHtPzSwB9TokM7Qa8ahSUks/edit?gid=1030656727#gid=1030656727",                                                            tags:["IRC","SHEETS","PPTO","EXTERNOS"] },
+    ]
+  },
+  {
+    id: "irc-rentas", colorClass: "irc",
+    title: "IRC · Rentas",
+    items: [
+      { label:"INGRESO Arriendos LGSTCK_CPF",    hint:"www.ircrentas.cl/lgstckcpf",   url:"https://www.ircrentas.cl/lgstckcpf",                                                                                                                       tags:["IRC","RENTAS"] },
+      { label:"INGRESO Arriendos MiniBod_AB",    hint:"www.ircrentas.cl/minibodegas", url:"https://www.ircrentas.cl/minibodegas",                                                                                                                      tags:["IRC","RENTAS"] },
+      { label:"COBRANZA Arriendos LGSTCK_CPF",   hint:"Google Sheet de cobranza",     url:"https://docs.google.com/spreadsheets/d/1VzJeg0xb_9o5lFtziLNraF1YxAcv682SgaMZVxJZc9c/edit?gid=1122071508#gid=1122071508",                                  tags:["IRC","RENTAS","SHEETS","EXTERNOS"] },
+      { label:"COBRANZA Arriendos MiniBod_AB",   hint:"ircinmobiliaria.cl",           url:"https://www.ircinmobiliaria.cl",                                                                                                                            tags:["IRC","RENTAS"] },
+    ]
+  },
+  {
+    id: "irc-general", colorClass: "irc",
+    title: "IRC · General",
+    items: [
+      { label:"Formulario Solicitud de Pagos WebApp",      hint:"WebApp Solicitud de Pagos",               url:"https://script.google.com/macros/s/AKfycbxuExbXFWgy4GHtSxoD31tOzCA8y8Wu1_5nkWgfnuYHf4knI21V4ATrvpM8qyKdjuirdg/exec?authuser=0",           tags:["IRC","GENERAL"] },
+      { label:"Formulario Solicitud de Fondos por Rendir", hint:"WebApp Fondos por Rendir",                 url:"https://script.google.com/macros/s/AKfycbzTK3zMbzQ2KCbM_PsMlsRk9u8rcyqKQFog-T0qX6OgAxoROr7e27UAN1IRGlrildzc/exec?authuser=0",            tags:["IRC","GENERAL"] },
+      { label:"Formulario Ordenes de Compra OC",           hint:"WebApp Ordenes de Compra OC",             url:"https://script.google.com/macros/s/AKfycbwMhrscMHMeZy1m2AzCl3UyDJNMo2PzjWbyVkwWwPoYgFAUVUJ7TISjV2Bb2KpR8xMAcg/exec?authuser=0",          tags:["IRC","GENERAL"] },
+      { label:"Formulario Registro Giros Bancos",          hint:"WebApp Giro Bancos",                      url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbxSdSAbDDG1a7EKh-z4pddY1VTx8iOv-3MKbrexqwyN3G6ytihhCBEDWvFSPNnXDv5pQA/exec?authuser=0", tags:["IRC","GENERAL"] },
+      { label:"Formulario Registro Tesorerías",            hint:"WebApp Tesorerías",                       url:"https://script.google.com/macros/s/AKfycbwYwk8-tOnSpWR2phI9n2FWMjmI78rUINi7unEoGIlzOdxFK7FMcrvoHFcRxp3sUOA/exec?authuser=0",             tags:["IRC","GENERAL"] },
+      { label:"Formulario Seguros y Pólizas",              hint:"WebApp Seguros y Pólizas",                url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbxRMd-FlKQLRGW7pdYW4MxqsgUs80yQyIYOsJx2vHn9YJ8fqXMU8VItLEIVLxSjhfLz/exec?authuser=0", tags:["IRC","GENERAL"] },
+      { label:"Consultas SP x WebApp",                     hint:"WebApp Consultas SP",                     url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycby0-BlNNOmEkJ6fu-CFVpqFx02ne70vHTd8L9b5hDjjeXKVj5hfGi4Ii96I7PIBw1EPAQ/exec?authuser=0", tags:["IRC","GENERAL"] },
+      { label:"RR.HH. EDO",                                hint:"Apps Script",                             url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbyKxVSld8O-767naxnwzIFabbrxLFvs8H0hQPRCHLZ5qbC-sG1evkXwAlcBFmP8HfzM/exec?authuser=0", tags:["IRC","GENERAL"] },
+      { label:"Portal RR.HH. IRC/RUTA",                   hint:"WebApp Vacaciones-Liquidaciones-Contratos",url:"https://script.google.com/macros/s/AKfycbwUzoofg9oZfD1IztIBQ0I4p3pYyB24ehTTD1H-AFIRHp8b6kGWNGW7_luBrZ2lKhop/exec?authuser=0",            tags:["IRC","GENERAL"] },
+    ]
+  },
+  {
+    id: "ruta-externos", colorClass: "extern",
+    title: "RUTA · Externos (CMF / UAF)",
+    items: [
+      { label:"Tracker Uso Plataforma",                    hint:"Track Uso Consolas",                          url:"https://docs.google.com/spreadsheets/d/1M76AZ82vSK4k3HXoeUMhbOjznKHjcdUbrL8y4_ugw5M/edit?gid=1903782500#gid=1903782500",             tags:["RUTA","EXTERNOS"] },
+      { label:"Tracker Uso Inversionistas",                hint:"Track Uso Inversionistas",                    url:"https://docs.google.com/spreadsheets/d/1nJ9YZRbdAsV80yg5PBejUFnp0_Hzf36hZ3Vkz9K165U/edit?gid=302094918#gid=302094918",              tags:["RUTA","EXTERNOS"] },
+      { label:"Cuentas Casa EDO",                          hint:"Cuentas: ss.bb EDO",                          url:"https://script.google.com/macros/s/AKfycby0XkSZ2ePMuK_fL0ofy6x9RvgzrBaygJEZ0w3z37oQYHgPvgTol4BLevBF-An5K1OCkw/exec?authuser=0",    tags:["RUTA","EXTERNOS"] },
+      { label:"RegCheck",                                  hint:"Regcheq: validación externa",                 url:"https://app.regcheq.com/login/",                                                                                                    tags:["RUTA","EXTERNOS"] },
+      { label:"CMF Chile",                                 hint:"Portal principal CMF",                        url:"https://www.cmfchile.cl/institucional/seil/conecta_seil.php",                                                                        tags:["RUTA","EXTERNOS"] },
+      { label:"UAF Chile",                                 hint:"Portal principal UAF",                        url:"https://reporteoperaciones.uaf.cl/portada_unica.asp",                                                                               tags:["RUTA","EXTERNOS"] },
+      { label:"Reportes Normativos CMF y UAF",             hint:"Dropbox",                                     url:"https://www.dropbox.com/scl/fo/xrdq9922pi01p0bb9kc0x/AA9DxaGxPFQGhl2-aqjPFkI?rlkey=2fp9h78hm3iwhhciekniyv31m&dl=0",               tags:["RUTA","EXTERNOS"] },
+      { label:"Seguimiento FINLAW",                        hint:"Ley 20.393 · Ley 19.913 · Ley 20.712",       url:"https://www.dropbox.com/scl/fo/u1aux3a4wf067pc8nopf5/AHyBLWclrY4lTFzej1HlDOE?rlkey=4cjzhf5f30claiycbbwyrgyvl&dl=0",               tags:["RUTA","EXTERNOS"] },
+    ]
+  },
+];
+
+/* ── AUTH ── */
+let currentUser = null;
+
+function restoreSession() {
+  try {
+    const saved = localStorage.getItem("consolatotal_user");
+    if (saved) {
+      currentUser = JSON.parse(saved);
+      if (isAllowed(currentUser.email)) { showApp(); return true; }
+    }
+  } catch(e) {}
+  return false;
+}
+
+function isAllowed(email) {
+  if (!email) return false;
+  if (CONFIG.ALLOWED_DOMAINS.length === 0) return true;
+  const domain = email.split("@")[1] || "";
+  return CONFIG.ALLOWED_DOMAINS.includes(domain);
+}
+
+function showApp() {
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("app-screen").style.display = "flex";
+  if (currentUser) {
+    const av = document.getElementById("user-avatar");
+    if (currentUser.picture) { av.src = currentUser.picture; }
+  }
+  render();
+}
+
+function showAuth() {
+  document.getElementById("auth-screen").style.display = "flex";
+  document.getElementById("app-screen").style.display = "none";
+}
+
+window.handleGoogleSignIn = function(response) {
+  const errEl = document.getElementById("auth-error");
+  const loadEl = document.getElementById("auth-loading");
+  errEl.style.display = "none";
+  loadEl.style.display = "flex";
+  try {
+    const payload = JSON.parse(atob(response.credential.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+    const email = (payload.email || "").toLowerCase();
+    if (!isAllowed(email)) { loadEl.style.display = "none"; errEl.style.display = "block"; return; }
+    currentUser = { email, name: payload.name, picture: payload.picture };
+    localStorage.setItem("consolatotal_user", JSON.stringify(currentUser));
+    loadEl.style.display = "none";
+    showApp();
+  } catch(e) {
+    loadEl.style.display = "none";
+    errEl.style.display = "block";
+    errEl.textContent = "❌ Error de autenticación.";
+  }
+};
+
+document.getElementById("btn-login").addEventListener("click", function() {
+  if (typeof google === "undefined" || !google.accounts) { alert("Cargando Google… intenta de nuevo."); return; }
+  google.accounts.id.initialize({ client_id: CONFIG.GOOGLE_CLIENT_ID, callback: window.handleGoogleSignIn, ux_mode: "popup" });
+  google.accounts.id.prompt(n => {
+    if (n.isNotDisplayed() || n.isSkippedMoment()) {
+      const params = new URLSearchParams({ client_id: CONFIG.GOOGLE_CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: "token", scope: "email profile", prompt: "select_account" });
+      window.location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + params;
+    }
+  });
+});
+
+document.getElementById("btn-logout").addEventListener("click", function() {
+  localStorage.removeItem("consolatotal_user");
+  currentUser = null;
+  if (typeof google !== "undefined" && google.accounts) google.accounts.id.disableAutoSelect();
+  showAuth();
+});
+
+(function handleOAuthRedirect() {
+  const hash = location.hash.substring(1);
+  if (!hash.includes("access_token")) return;
+  const params = new URLSearchParams(hash);
+  const token = params.get("access_token");
+  if (!token) return;
+  history.replaceState(null, "", location.pathname);
+  fetch("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: "Bearer " + token } })
+    .then(r => r.json()).then(payload => {
+      const email = (payload.email || "").toLowerCase();
+      if (!isAllowed(email)) { document.getElementById("auth-error").style.display = "block"; return; }
+      currentUser = { email, name: payload.name, picture: payload.picture };
+      localStorage.setItem("consolatotal_user", JSON.stringify(currentUser));
+      showApp();
+    }).catch(() => { document.getElementById("auth-error").style.display = "block"; });
+})();
+
+/* ── RENDER ── */
+let activeFilter = "ALL";
+
+function normalize(s) { return String(s||"").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,""); }
+function escapeHtml(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function matchesFilter(tags) {
+  if (activeFilter === "ALL") return true;
+  if (activeFilter === "EXTERNOS") return (tags||[]).includes("EXTERNOS");
+  return (tags||[]).includes(activeFilter);
+}
+
+function render() {
+  const query = normalize(document.getElementById("q").value.trim());
+  const $content = document.getElementById("content");
+  const $empty = document.getElementById("empty-state");
+  let total = 0;
+  Array.from($content.children).forEach(el => { if (el.id !== "empty-state") el.remove(); });
+
+  SECTIONS.forEach(sec => {
+    const visibleItems = (sec.items||[]).filter(item => {
+      const hay = normalize([sec.title, item.label, item.hint, ...(item.tags||[])].join(" "));
+      return (!query || hay.includes(query)) && matchesFilter(item.tags);
+    });
+    if (!visibleItems.length) return;
+    total += visibleItems.length;
+
+    const card = document.createElement("div");
+    card.className = "section-card";
+
+    const header = document.createElement("div");
+    header.className = "section-header " + (sec.colorClass || "ruta");
+    header.innerHTML = `<span>${escapeHtml(sec.title)}</span><span class="section-count">${visibleItems.length}</span>`;
+    card.appendChild(header);
+
+    const list = document.createElement("div");
+    list.className = "links-list";
+    visibleItems.forEach(item => {
+      const isExt = (item.tags||[]).includes("EXTERNOS");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "link-item";
+      btn.dataset.url    = item.url;
+      btn.dataset.label  = item.label;
+      btn.dataset.secId  = sec.id;
+      btn.dataset.tags   = (item.tags||[]).join(",");
+      btn.dataset.extern = isExt ? "1" : "0";
+      btn.innerHTML = `
+        <div class="link-bullet ${sec.colorClass||"ruta"}"></div>
+        <div class="link-text">
+          <div class="link-label">${escapeHtml(item.label)}${isExt ? '<span class="badge-ext">↗</span>' : ''}</div>
+          <div class="link-hint">${escapeHtml(item.hint||"")}</div>
+        </div>
+        <div class="link-arrow">›</div>`;
+      list.appendChild(btn);
+    });
+    card.appendChild(list);
+    $content.insertBefore(card, $empty);
+  });
+
+  document.getElementById("meta").textContent = "Mostrando " + total;
+  $empty.style.display = total === 0 ? "block" : "none";
+}
+
+/* ── EVENTOS ── */
+document.getElementById("filters").addEventListener("click", e => {
+  const pill = e.target.closest(".pill");
+  if (!pill) return;
+  activeFilter = pill.dataset.filter || "ALL";
+  document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+  pill.classList.add("active");
+  render();
+});
+
+const $qInput = document.getElementById("q");
+const $clear = document.getElementById("search-clear");
+$qInput.addEventListener("input", () => { $clear.style.display = $qInput.value ? "block" : "none"; render(); });
+$clear.addEventListener("click", () => { $qInput.value = ""; $clear.style.display = "none"; render(); $qInput.focus(); });
+
+document.getElementById("content").addEventListener("click", e => {
+  const btn = e.target.closest(".link-item");
+  if (!btn) return;
+  const url    = btn.dataset.url;
+  const label  = btn.dataset.label;
+  const tags   = btn.dataset.tags;
+  const extern = btn.dataset.extern === "1";
+  const hint   = btn.querySelector(".link-hint");
+  const origHint = hint ? hint.textContent : "";
+  btn.classList.add("loading");
+  if (hint) hint.textContent = "cargando…";
+  const restore = () => { btn.classList.remove("loading"); if (hint) hint.textContent = origHint; };
+  const id = (btn.dataset.secId + "-" + label).toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,60);
+  const tracked = CONFIG.TRACKER_BASE + "?go=1"
+    + "&id="      + encodeURIComponent(id)
+    + "&url="     + encodeURIComponent(url)
+    + "&label="   + encodeURIComponent(label)
+    + "&group_id="+ encodeURIComponent(btn.dataset.secId||"")
+    + "&tags="    + encodeURIComponent(tags)
+    + "&u="       + encodeURIComponent(currentUser ? currentUser.email : "");
+  if (extern) { restore(); window.open(tracked, "_blank", "noopener"); }
+  else { window.location.href = tracked; }
+});
+
+/* ── SERVICE WORKER ── */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("./sw.js").catch(()=>{}); });
+}
+
+/* ── INIT ── */
+if (!restoreSession()) showAuth();
+</script>
+</body>
+</html>
