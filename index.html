@@ -181,7 +181,7 @@
     Ingresar con Google
   </button>
   <div id="auth-error">❌ No tienes acceso autorizado.</div>
-  <div id="auth-loading" style="display:none;"><div class="spinner"></div></div>
+  <div id="auth-loading" style="display:none;"><div class="spinner"></div>&nbsp;Verificando acceso…</div>
 </div>
 
 <!-- APP -->
@@ -226,144 +226,84 @@
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
-/* ── CONFIG ── */
+/* ══════════════════════════════════════════════════════════════
+   CONFIG — el HTML público solo conoce el Client ID (público por
+   diseño) y el endpoint de links. Todo lo demás (URLs de webapps,
+   tracker, topic ntfy) lo entrega ConsolaLinks tras verificar el
+   token server-side.
+══════════════════════════════════════════════════════════════ */
 const CONFIG = {
   GOOGLE_CLIENT_ID: "154544420704-oibq8s4k42898m5rb93e8ccoenv19m1e.apps.googleusercontent.com",
-  ALLOWED_DOMAINS: ["rutacapital.cl"],
-  TRACKER_BASE: "https://script.google.com/macros/s/AKfycbziVKYfDUvgQW8kzc_Gf_eDhLpuw4OS_4Jw04-5M2XrWH931IhRlnse0AUicUOJ0vD5/exec",
+  LINKS_API: "https://script.google.com/macros/s/AKfycbzO-Ft1Ca7lTHr7BJaOkTKLS8S5tkeh3f57ECS6vFNQbq8xYZu0IAKe_NoiIGQWwPma/exec",  // ← URL /exec del deployment de ConsolaLinks.gs
+  CONSOLA: "total",
+  CACHE_KEY: "consolatotal_v2",
+  CACHE_DIAS: 30,
 };
 
-/* ── SECCIONES (sincronizadas con consola-maestra / gate v3) ── */
-const SECTIONS = [
-  {
-    id: "ruta-internos", colorClass: "ruta",
-    title: "RUTA · Registros y Reportes Internos",
-    items: [
-      { label:"AGENTE EDO TOTAL", hint:"Formulario Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbwKYADtMoedO5cLA76-GZF51G1nxw5YMaHuwos-5TQWMtnb2M0SrdetV_DNI0_Dlmbj/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"Dashboard Automático Cuentas Bancarias", hint:"Formulario Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbz0zJe0KmjC-4Mvd-z_3EpcH2rxKsTDkFDoE7VcBjkBH9sEL2TSfc949V55X46hHD0p/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"Verificador Automático de Pagos Nómina", hint:"Formulario Apps Script", url:"https://script.google.com/macros/s/AKfycbxB_UBNtkEer-ADgD7OmbfDSroGt16FE86o7Ph10cfzoizU9hGQPCw5Lxvv2A8g1HG1/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"Formulario Registro de FIPs", hint:"Formulario Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbxSVRGKdm1q_f-Ll4DPQyRcwBp8YInDGa-l0ef9wdd3DMeNjwMVvQtgZBJB8Xy70__fog/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"Formulario Registro de Aportantes y Aportes", hint:"Formulario Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbz-4gRgANRrl-4S7uLo_9Jbs23XvJMhbRXecJjMe3EW2fCDqPaAG4uAlDoqngUXDU0agw/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"Formulario Registro de Prestamistas y Préstamos", hint:"Formulario Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzCv8PWDzS_0dy2D4C3Tc14OXNteihZo6OmsoCCbF5yqP0C9D3Sq-_AmzUMmW_NPZsgQQ/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"Formulario Registro de Actas Asambleas", hint:"Formulario Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycby-LRQC0CEz9PfCtttB3q8s9zoJfAdCSpNV-8JZibTMQXpbDj6GMRg3Ps5YbyIpLpftQQ/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"Formulario Registro y Envío de EE.FF. FIPs", hint:"Formulario Apps Script", url:"https://script.google.com/macros/s/AKfycbzluXMM4-ev9PwvRpEiGdFecLnP1lr19iUjdkWRyo2_3lrGR-vLtSell203_rRoVL-q/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"CRM INVERSIONISTAS RUTA", hint:"Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbx6Ft8rqg5otsiSQaugCfDP5CfwZkHGYhGHCFH5kam77Re9qg4Bqjk_16FZn7Hi9EdMPg/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"CONCILIADOR FLUJOS INVERSIONISTAS", hint:"Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzr9YAG5orjUO9t3R-JTe4T6G5g0XTvnovcTCVhHzpHAcc4Y4e0Gj7-oavMxD7UXpnZgw/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"EVALUACIONES ECONÓMICAS RC", hint:"Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzwJVjdanD2Hfv_AAj2Ns9kfZS55k9PNunRVF_0XmJdgJcH7X27JiIOVFyMa4oUqLqg/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"GENERADOR DE FACTSHEETS", hint:"rutacapital.cl/inversionistas-factsheets", url:"https://rutacapital.cl/inversionistas-factsheets/?admin=d0Zy53cb7J_sjHkPp-m39i77aXvGQqWL", tags:["RUTA", "INTERNOS"], openExternal: true },
-      { label:"CARTOLAS APORTANTES", hint:"Apps Script", url:"https://script.google.com/macros/s/AKfycbzhhHCVkMgPLfuPGpmCpCb-fE6Mee26sWFpSCsUmmAy7Ctdo_muk4NX5wIWF-vzYXdZ/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"PÁGINA DEL APORTANTE", hint:"rutacapital.cl/inversionistas-aportantes", url:"https://rutacapital.cl/inversionistas-aportantes/", tags:["RUTA", "INTERNOS"], openExternal: true },
-      { label:"CARTOLAS PRESTAMISTAS", hint:"Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbwV6XtHM1E60OeJgqr9dBW4QkKnfSije9VC_0XTCD_kJ-hmIzriupI4tzCiegXPsLlw/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"PÁGINA DEL PRESTAMISTAS", hint:"rutacapital.cl/inversionistas-acreedor", url:"https://rutacapital.cl/inversionistas-acreedor/", tags:["RUTA", "INTERNOS"], openExternal: true },
-      { label:"ENVÍO CAPITAL CALL A APORTANTES", hint:"Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbz05K3pd8E49QWKS6ZHRhtAFMyyYkoB-SI6IkSbcVHHuwuRUBU4IYwi4MnmnYUIoPYF/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"ENVÍO AVISO REPARTO A APORTANTES/PRESTAMISTAS", hint:"Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbx7JL5JpyK1mmrR3rWuQrDvExAW7epzgjmOLeqCPVarfrMboOv7vyku5wJy-UlBPZg/exec?authuser=0", tags:["RUTA", "INTERNOS"] },
-      { label:"INGRESO/EGRESO CAJA FUERTE", hint:"Apps Script", url:"https://script.google.com/macros/s/AKfycbyxlVjR47J6zHqyGgXVWZb63Ir3l2zaU3tIxtjqxZyYFCECmSg5q3fJ3dVbNGsrF-73GQ/exec?t=eroubik-bw9s5s&authuser=0", tags:["RUTA", "INTERNOS"] },
-    ]
-  },
-  {
-    id: "irc-desarrollos", colorClass: "irc",
-    title: "IRC · Desarrollos",
-    items: [
-      { label:"IRC - LEAD MONITOR", hint:"WebApp Monitor de Leads", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbxiEvIeUyNzpHpW4DDc8h6V5ajj9k4iGQoJmPeK0uOekHP06CpwpKA5ZVU1jAFuwoOJ/exec?authuser=0", tags:["IRC", "DESARROLLOS"], openExternal: true },
-      { label:"AGENTE IA VENTAS IRC", hint:"WebApp AGENTE VENTAS IA", url:"https://script.google.com/a/macros/ircinmobiliaria.cl/s/AKfycbyHWiB_wEu5U6KcLOunMZTHlmyW_bme9VOXZ0Op0R5N-hmP02RztkTXKW9eZfY-NHU/exec", tags:["IRC", "DESARROLLOS", "EXTERNOS"], openExternal: true },
-      { label:"INGRESO Ventas IRD1_VLF", hint:"WebApp Ventas Vista La Florida", url:"https://script.google.com/macros/s/AKfycbwFFeyYveFRXFKD_5eajYMwPBWhQgcXsRVyTWc4y6Qpu4tSv2o4kB6h7lxafpEeG7xb8g/exec?authuser=0", tags:["IRC", "DESARROLLOS"] },
-      { label:"INGRESO Ventas IRD2_JAA", hint:"WebApp Ventas Juan Agustín Alcalde", url:"https://script.google.com/macros/s/AKfycbzEKqa4qxcytATFCC3efQcijGU63f0UMSop07nPg9F7rPeq8YT9wAwWgFUTUBD-vuX9/exec?authuser=0", tags:["IRC", "DESARROLLOS"] },
-      { label:"INGRESO Ventas IRD3_LGSTCK_CPF", hint:"WebApp Ventas Logistock CPF", url:"https://script.google.com/macros/s/AKfycbxV7XGjxz7oi8YmGpFamBVPtc3e9Eqf32H-E5SalLqOb4dGXkYVCyj8jRlXJUzSD34k/exec?authuser=0", tags:["IRC", "DESARROLLOS"] },
-      { label:"INGRESO Ventas IRD4_EC", hint:"WebApp Ventas Edificio Carrera", url:"https://script.google.com/macros/s/AKfycbxGpw8G81WyNqbx9GHDLQrBvrdrYn6Oox-Uk1p7asZ-zK4WLY8rU8k82e8E13vJMvFLtA/exec?authuser=0", tags:["IRC", "DESARROLLOS"] },
-      { label:"INGRESO Ventas IRD6_AB", hint:"WebApp Ventas Distrito Barroso", url:"https://script.google.com/macros/s/AKfycbx31zA2S7uOAHMRzJwLH7NgU4v4tGywUCFbEbO4_RGY1MHRfCRjtgh21jY9O1qOc3HTnQ/exec?authuser=0", tags:["IRC", "DESARROLLOS"] },
-      { label:"INGRESO Ventas IRD7_LGSTCK_KM17", hint:"WebApp Ventas Logistock KM17", url:"https://script.google.com/macros/s/AKfycbyrHpke43uSvfdnKarEPlC9Vy7Q5XFND3dRs4cHxNJ96hHfvX8u0Si9ligOC-L2EL4e4Q/exec?authuser=0", tags:["IRC", "DESARROLLOS"] },
-      { label:"Sistema de POSTVENTA IRC/RUTA", hint:"WebApp Postventa", url:"https://script.google.com/a/macros/ircinmobiliaria.cl/s/AKfycbz9r2z_aNEegQ5QQ9OHBq_QJxR81jTHhDzgtdv69U9zPGRtS0C3RwSd4mHb0fap2J2b/exec?k=pv-irc-2026-Kx9mTal7Qw3Zr", tags:["IRC", "DESARROLLOS"] },
-      { label:"Formulario Solicitud de Firmas de Actas Entrega", hint:"WebApp Solicitud de Firmas", url:"https://script.google.com/a/macros/ircinmobiliaria.cl/s/AKfycbyE1Vmnk9CidJdfSzWVNF0wo1MLFwqVmd9aifgMbq5a2UkiO9imXcaIhzbW8qop-XwUFg/exec", tags:["IRC", "DESARROLLOS"], openExternal: true },
-      { label:"Registro Pago - Cuentas Básica Proyectos IRC", hint:"WebApp", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzQokU2O-XELtqJ9RDhi-NHbsUOwDndwiXwe5vACxzzuM_zT8tdLUvPdPbNto_QeqTp/exec", tags:["IRC", "SHEETS", "PPTO"] },
-      { label:"CTRL. PPTO. IRD1 - Vista La Florida", hint:"Google Sheet", url:"https://docs.google.com/spreadsheets/d/1YTp6gZnyfSIR_MTRFB-zmVOVU8WrIoyZhyPDx64rMRU/edit?gid=1970529769#gid=1970529769", tags:["IRC", "SHEETS", "PPTO", "EXTERNOS"] },
-      { label:"CTRL. PPTO. IRD2 - Juan Agustín", hint:"Google Sheet", url:"https://docs.google.com/spreadsheets/d/1LPekDMr-p_zQlgrY5cobt6jXR-f2FZuETvOUkSLoTTo/edit?gid=363827626#gid=363827626", tags:["IRC", "SHEETS", "PPTO", "EXTERNOS"] },
-      { label:"CTRL. PPTO. IRD3 - LGSTCK_CPF", hint:"Google Sheet", url:"https://docs.google.com/spreadsheets/d/1iFunz9sGUJQw2J5IH8LZEQQdu0lRA6YYFa_QzqqUdLY/edit?gid=25940783#gid=25940783", tags:["IRC", "SHEETS", "PPTO", "EXTERNOS"] },
-      { label:"CTRL. PPTO. IRD4 - Edificio Carrera", hint:"Google Sheet", url:"https://docs.google.com/spreadsheets/d/1EP8pp9w8KRkuFrrASSZsVoNQ2tWCB01-uBxtD7S8ELU/edit?gid=1500317514#gid=1500317514", tags:["IRC", "SHEETS", "PPTO", "EXTERNOS"] },
-      { label:"CTRL. PPTO. IRD6 - Distrito Barroso", hint:"Google Sheet", url:"https://docs.google.com/spreadsheets/d/1vhBpoqgQGG6Kj8aloc-P3N1APFvevaKNXxS7f5lLz70/edit?gid=1270794699#gid=1270794699", tags:["IRC", "SHEETS", "PPTO", "EXTERNOS"] },
-      { label:"CTRL. PPTO. IRD7 - LGSTCK_KM17", hint:"Google Sheet", url:"https://docs.google.com/spreadsheets/d/1pUgVIJniZL3c0sHAqCBGfHtPzSwB9TokM7Qa8ahSUks/edit?gid=1030656727#gid=1030656727", tags:["IRC", "SHEETS", "PPTO", "EXTERNOS"] },
-      { label:"CTRL. PPTO. BEILUN - MOSAICO", hint:"Google Sheet", url:"https://docs.google.com/spreadsheets/d/1I6tHJ4B0rBXq2-56zqxT7hqkSHjigtsV9H5mlY-1WlM/edit?gid=1030656727#gid=1030656727", tags:["IRC", "SHEETS", "PPTO", "EXTERNOS"] },
-    ]
-  },
-  {
-    id: "irc-rentas", colorClass: "irc",
-    title: "IRC · Rentas",
-    items: [
-      { label:"INGRESO Arriendos LGSTCK_CPF", hint:"www.ircrentas.cl/lgstckcpf", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbxcuD6PcfrIo4-dn7QcRDkEA_fPDMWG5f1VBmp1ATwxk75TdKclhiY9emTjTa5lPbBcSw/exec?authuser=0", tags:["IRC", "RENTAS"] },
-      { label:"INGRESO Arriendos MiniBod_AB", hint:"www.ircrentas.cl/minibodegas", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzmzJFNYgtc2Svea3xmM9uF3Is7B31WbMi_1EUIcjPwmUzAi1ZLb-AA0JETOiTZ1kXn3Q/exec?authuser=0", tags:["IRC", "RENTAS"] },
-      { label:"COBRANZA Arriendos LGSTCK_CPF", hint:"Google Sheet de cobranza", url:"https://docs.google.com/spreadsheets/d/1VzJeg0xb_9o5lFtziLNraF1YxAcv682SgaMZVxJZc9c/edit?gid=1122071508#gid=1122071508", tags:["IRC", "RENTAS", "SHEETS", "EXTERNOS"] },
-      { label:"COBRANZA Arriendos MiniBod_AB", hint:"Google Sheet de cobranza", url:"https://www.ircinmobiliaria.cl", tags:["IRC", "RENTAS"] },
-    ]
-  },
-  {
-    id: "irc-general", colorClass: "irc",
-    title: "IRC · General",
-    items: [
-      { label:"Formulario Solicitud de Pagos WebApp", hint:"WebApp Solicitud de Pagos", url:"https://script.google.com/macros/s/AKfycbxuExbXFWgy4GHtSxoD31tOzCA8y8Wu1_5nkWgfnuYHf4knI21V4ATrvpM8qyKdjuirdg/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Formulario Solicitud de Fondos por Rendir", hint:"WebApp Fondos por Rendir", url:"https://script.google.com/macros/s/AKfycbzTK3zMbzQ2KCbM_PsMlsRk9u8rcyqKQFog-T0qX6OgAxoROr7e27UAN1IRGlrildzc/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Formulario Reembolsos", hint:"WebApp Reembolsos", url:"https://script.google.com/macros/s/AKfycbzqmCG7qg_kRe6OBIrnGygc2tI6-wzHI4jRgqNfQSJaDhUE2p3DZzN3KWFzbNIL9jU_/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Formulario Ordenes de Compra OC", hint:"WebApp Ordenes de Compra OC", url:"https://script.google.com/macros/s/AKfycbwMhrscMHMeZy1m2AzCl3UyDJNMo2PzjWbyVkwWwPoYgFAUVUJ7TISjV2Bb2KpR8xMAcg/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Formulario Registro Giros Bancos", hint:"WebApp Giro Bancos", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbxSdSAbDDG1a7EKh-z4pddY1VTx8iOv-3MKbrexqwyN3G6ytihhCBEDWvFSPNnXDv5pQA/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Formulario Registro Tesorerías", hint:"WebApp Tesorerías", url:"https://script.google.com/macros/s/AKfycbwYwk8-tOnSpWR2phI9n2FWMjmI78rUINi7unEoGIlzOdxFK7FMcrvoHFcRxp3sUOA/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Formulario Seguros y Pólizas", hint:"WebApp Seguros y Pólizas", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbxRMd-FlKQLRGW7pdYW4MxqsgUs80yQyIYOsJx2vHn9YJ8fqXMU8VItLEIVLxSjhfLz/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Formulario Solicitud de Firmas", hint:"WebApp Firma Online", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbzvq7ebFCLJvxN_Et6XGFP6f5HotGH0OAthlTwC2iufZkHoCt5ixswoJUffApbOZ3Dn0g/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Consultas SP x WebApp", hint:"WebApp Consultas SP", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycby0-BlNNOmEkJ6fu-CFVpqFx02ne70vHTd8L9b5hDjjeXKVj5hfGi4Ii96I7PIBw1EPAQ/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"RR.HH. EDO", hint:"Apps Script", url:"https://script.google.com/a/macros/rutacapital.cl/s/AKfycbyKxVSld8O-767naxnwzIFabbrxLFvs8H0hQPRCHLZ5qbC-sG1evkXwAlcBFmP8HfzM/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Portal RR.HH. IRC/RUTA", hint:"WebApp RR.HH.", url:"https://script.google.com/macros/s/AKfycbwUzoofg9oZfD1IztIBQ0I4p3pYyB24ehTTD1H-AFIRHp8b6kGWNGW7_luBrZ2lKhop/exec?authuser=0", tags:["IRC", "GENERAL"] },
-      { label:"Vaciones RR.HH. IRC/RUTA", hint:"WebApp Aprobación Vacaciones", url:"https://script.google.com/macros/s/AKfycby4qgRAeyWotS1MMrCuTedfNTJ2sdwETl1gU8X05vFqdqGLhF5NKWxaVRsvtciiqJ1GTw/exec?authuser=0", tags:["IRC", "GENERAL"] },
-    ]
-  },
-  {
-    id: "ruta-externos", colorClass: "extern",
-    title: "RUTA · Registros y Reporte Externos (CMF / UAF)",
-    items: [
-      { label:"Tracker Uso Plataforma", hint:"Track Uso Consolas", url:"https://docs.google.com/spreadsheets/d/1M76AZ82vSK4k3HXoeUMhbOjznKHjcdUbrL8y4_ugw5M/edit?gid=1903782500#gid=1903782500", tags:["RUTA", "EXTERNOS"] },
-      { label:"Tracker Uso Inversionistas", hint:"Track Uso Inversionistas", url:"https://docs.google.com/spreadsheets/d/1nJ9YZRbdAsV80yg5PBejUFnp0_Hzf36hZ3Vkz9K165U/edit?gid=302094918#gid=302094918", tags:["RUTA", "EXTERNOS"] },
-      { label:"Cuentas Casa EDO", hint:"Cuentas: ss.bb EDO", url:"https://script.google.com/macros/s/AKfycby0XkSZ2ePMuK_fL0ofy6x9RvgzrBaygJEZ0w3z37oQYHgPvgTol4BLevBF-An5K1OCkw/exec?authuser=0", tags:["RUTA", "EXTERNOS"] },
-      { label:"Asistente Classroom EDU", hint:"Asistente Classroom EDU", url:"https://script.google.com/macros/s/AKfycbwXs4flODGsAn-PxvJoYZ3_WchCjn1-fmyhcih73FSCHA8TuSEKruEOA9IaF2aV_RMC/exec?authuser=0", tags:["RUTA", "EXTERNOS"] },
-      { label:"RegCheck", hint:"Regcheq: validación externa", url:"https://app.regcheq.com/login/", tags:["RUTA", "EXTERNOS"] },
-      { label:"CMF Chile", hint:"Portal principal CMF", url:"https://www.cmfchile.cl/institucional/seil/conecta_seil.php", tags:["RUTA", "EXTERNOS"] },
-      { label:"UAF Chile", hint:"Portal principal UAF", url:"https://reporteoperaciones.uaf.cl/portada_unica.asp", tags:["RUTA", "EXTERNOS"] },
-      { label:"Reportes Normativos CMF y UAF", hint:"Dropbox", url:"https://www.dropbox.com/scl/fo/xrdq9922pi01p0bb9kc0x/AA9DxaGxPFQGhl2-aqjPFkI?rlkey=2fp9h78hm3iwhhciekniyv31m&dl=0", tags:["RUTA", "EXTERNOS"] },
-      { label:"Seguimiento FINLAW", hint:"Ley 20.393 MPD · Ley 19.913 UAF · Ley 20.712 FIPs", url:"https://www.dropbox.com/scl/fo/u1aux3a4wf067pc8nopf5/AHyBLWclrY4lTFzej1HlDOE?rlkey=4cjzhf5f30claiycbbwyrgyvl&dl=0", tags:["RUTA", "EXTERNOS"] },
-    ]
-  },
-];
+/* ── ESTADO (se llena post-autenticación) ── */
+let STATE = { user: null, sections: [], ntfy: null, tracker: null };
+let pendingProfile = null; // nombre/foto capturados durante el login
 
-/* ── AUTH ── */
-let currentUser = null;
+/* ══════════════ SESIÓN Y AUTENTICACIÓN ══════════════ */
 
 function restoreSession() {
   try {
-    const saved = localStorage.getItem("consolatotal_user");
-    if (saved) {
-      currentUser = JSON.parse(saved);
-      if (isAllowed(currentUser.email)) { showApp(); return true; }
+    const saved = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || "null");
+    if (saved && saved.user && saved.sections && saved.sections.length
+        && (Date.now() - (saved.ts || 0)) < CONFIG.CACHE_DIAS * 864e5) {
+      STATE = { user: saved.user, sections: saved.sections, ntfy: saved.ntfy || null, tracker: saved.tracker || null };
+      showApp();
+      return true;
     }
   } catch(e) {}
   return false;
 }
 
-function isAllowed(email) {
-  if (!email) return false;
-  if (CONFIG.ALLOWED_DOMAINS.length === 0) return true;
-  const domain = email.split("@")[1] || "";
-  return CONFIG.ALLOWED_DOMAINS.includes(domain);
+/** Envía el token a ConsolaLinks; si el servidor lo valida, recibe los links. */
+async function autenticar(token) {
+  const errEl  = document.getElementById("auth-error");
+  const loadEl = document.getElementById("auth-loading");
+  errEl.style.display = "none";
+  loadEl.style.display = "flex";
+  try {
+    // Body como string simple (text/plain) → sin preflight CORS, compatible con GAS
+    const r = await fetch(CONFIG.LINKS_API, {
+      method: "POST",
+      body: JSON.stringify({ token: token, consola: CONFIG.CONSOLA })
+    });
+    const data = await r.json();
+    if (!data.ok) {
+      loadEl.style.display = "none";
+      errEl.style.display = "block";
+      errEl.textContent = data.error === "no_autorizado"
+        ? "❌ No tienes acceso autorizado."
+        : "❌ Error de autenticación. Intenta de nuevo.";
+      return;
+    }
+    STATE.user     = Object.assign({}, pendingProfile || {}, { email: data.email });
+    STATE.sections = data.sections || [];
+    STATE.ntfy     = data.ntfy || null;
+    STATE.tracker  = data.tracker || null;
+    localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify({
+      user: STATE.user, sections: STATE.sections, ntfy: STATE.ntfy, tracker: STATE.tracker, ts: Date.now()
+    }));
+    loadEl.style.display = "none";
+    showApp();
+  } catch(err) {
+    loadEl.style.display = "none";
+    errEl.style.display = "block";
+    errEl.textContent = "❌ Error de conexión con el servidor.";
+  }
 }
 
 function showApp() {
   document.getElementById("auth-screen").style.display = "none";
   document.getElementById("app-screen").style.display = "flex";
-  if (currentUser) {
-    const av = document.getElementById("user-avatar");
-    if (currentUser.picture) { av.src = currentUser.picture; }
+  if (STATE.user && STATE.user.picture) {
+    document.getElementById("user-avatar").src = STATE.user.picture;
   }
-  // Ping de apertura de consola (fire-and-forget)
-  try {
-    fetch(CONFIG.TRACKER_BASE + "?go=1&beacon=1&ev=open&consola=total"
-      + "&u=" + encodeURIComponent(currentUser ? currentUser.email : ""),
-      { mode: "no-cors", keepalive: true });
-  } catch(err) {}
   render();
+  avisar("open");
 }
 
 function showAuth() {
@@ -371,24 +311,13 @@ function showAuth() {
   document.getElementById("app-screen").style.display = "none";
 }
 
+/* Login con Google Identity Services (ID token) */
 window.handleGoogleSignIn = function(response) {
-  const errEl = document.getElementById("auth-error");
-  const loadEl = document.getElementById("auth-loading");
-  errEl.style.display = "none";
-  loadEl.style.display = "flex";
   try {
     const payload = JSON.parse(atob(response.credential.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
-    const email = (payload.email || "").toLowerCase();
-    if (!isAllowed(email)) { loadEl.style.display = "none"; errEl.style.display = "block"; return; }
-    currentUser = { email, name: payload.name, picture: payload.picture };
-    localStorage.setItem("consolatotal_user", JSON.stringify(currentUser));
-    loadEl.style.display = "none";
-    showApp();
-  } catch(e) {
-    loadEl.style.display = "none";
-    errEl.style.display = "block";
-    errEl.textContent = "❌ Error de autenticación.";
-  }
+    pendingProfile = { name: payload.name, picture: payload.picture };
+  } catch(e) { pendingProfile = null; }
+  autenticar(response.credential);
 };
 
 document.getElementById("btn-login").addEventListener("click", function() {
@@ -403,12 +332,13 @@ document.getElementById("btn-login").addEventListener("click", function() {
 });
 
 document.getElementById("btn-logout").addEventListener("click", function() {
-  localStorage.removeItem("consolatotal_user");
-  currentUser = null;
+  localStorage.removeItem(CONFIG.CACHE_KEY);
+  STATE = { user: null, sections: [], ntfy: null, tracker: null };
   if (typeof google !== "undefined" && google.accounts) google.accounts.id.disableAutoSelect();
   showAuth();
 });
 
+/* Fallback OAuth redirect (access token en el hash) */
 (function handleOAuthRedirect() {
   const hash = location.hash.substring(1);
   if (!hash.includes("access_token")) return;
@@ -417,16 +347,40 @@ document.getElementById("btn-logout").addEventListener("click", function() {
   if (!token) return;
   history.replaceState(null, "", location.pathname);
   fetch("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: "Bearer " + token } })
-    .then(r => r.json()).then(payload => {
-      const email = (payload.email || "").toLowerCase();
-      if (!isAllowed(email)) { document.getElementById("auth-error").style.display = "block"; return; }
-      currentUser = { email, name: payload.name, picture: payload.picture };
-      localStorage.setItem("consolatotal_user", JSON.stringify(currentUser));
-      showApp();
-    }).catch(() => { document.getElementById("auth-error").style.display = "block"; });
+    .then(r => r.json())
+    .then(payload => { pendingProfile = { name: payload.name, picture: payload.picture }; })
+    .catch(() => { pendingProfile = null; })
+    .finally(() => autenticar(token));
 })();
 
-/* ── RENDER ── */
+/* ══════════════ TRACKING + NOTIFICACIONES ══════════════ */
+
+/** Beacon al tracker (log) + push ntfy si el servidor entregó topic. */
+function avisar(ev, label, secId, tags) {
+  const email = STATE.user ? STATE.user.email : "";
+  // 1) ACCESS_LOG en el tracker
+  if (STATE.tracker) {
+    try {
+      let q = STATE.tracker + "?go=1&beacon=1&consola=" + CONFIG.CONSOLA + "&ev=" + ev
+        + "&u=" + encodeURIComponent(email);
+      if (label) q += "&label=" + encodeURIComponent(label) + "&group_id=" + encodeURIComponent(secId||"") + "&tags=" + encodeURIComponent(tags||"");
+      fetch(q, { mode: "no-cors", keepalive: true });
+    } catch(e) {}
+  }
+  // 2) Push ntfy (solo si este usuario debe notificar; el servidor decide)
+  if (STATE.ntfy) {
+    try {
+      const hora = new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+      const titulo = ev === "open" ? "Consola Total · Ingreso" : "Consola Total · " + (label || "Click");
+      const cuerpo = ev === "open" ? (email + " abrió la consola · " + hora) : (email + " · " + hora);
+      const tag    = ev === "open" ? "unlock" : "large_blue_circle";
+      fetch(STATE.ntfy + "?title=" + encodeURIComponent(titulo) + "&tags=" + tag,
+        { method: "POST", body: cuerpo, keepalive: true });
+    } catch(e) {}
+  }
+}
+
+/* ══════════════ RENDER ══════════════ */
 let activeFilter = "ALL";
 
 function normalize(s) { return String(s||"").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,""); }
@@ -444,7 +398,7 @@ function render() {
   let total = 0;
   Array.from($content.children).forEach(el => { if (el.id !== "empty-state") el.remove(); });
 
-  SECTIONS.forEach(sec => {
+  STATE.sections.forEach(sec => {
     const visibleItems = (sec.items||[]).filter(item => {
       const hay = normalize([sec.title, item.label, item.hint, ...(item.tags||[])].join(" "));
       return (!query || hay.includes(query)) && matchesFilter(item.tags);
@@ -490,7 +444,7 @@ function render() {
   $empty.style.display = total === 0 ? "block" : "none";
 }
 
-/* ── EVENTOS ── */
+/* ══════════════ EVENTOS ══════════════ */
 document.getElementById("filters").addEventListener("click", e => {
   const pill = e.target.closest(".pill");
   if (!pill) return;
@@ -509,26 +463,11 @@ document.getElementById("content").addEventListener("click", e => {
   const btn = e.target.closest(".link-item");
   if (!btn) return;
   const url    = btn.dataset.url;
-  const label  = btn.dataset.label;
-  const tags   = btn.dataset.tags;
   const extern = btn.dataset.extern === "1";
   const openExternal = btn.dataset.openExternal === "1";
 
-  const id = (btn.dataset.secId + "-" + label).toLowerCase()
-    .replace(/[^a-z0-9]+/g,"-").slice(0,60);
-
-  const tracked = CONFIG.TRACKER_BASE + "?go=1&beacon=1&ev=click&consola=total"
-    + "&id="      + encodeURIComponent(id)
-    + "&url="     + encodeURIComponent(url)
-    + "&label="   + encodeURIComponent(label)
-    + "&group_id="+ encodeURIComponent(btn.dataset.secId||"")
-    + "&tags="    + encodeURIComponent(tags)
-    + "&u="       + encodeURIComponent(currentUser ? currentUser.email : "");
-
-  // Log fire-and-forget: registra el click sin bloquear ni condicionar la navegación
-  try {
-    fetch(tracked, { mode: "no-cors", keepalive: true });
-  } catch(err) {}
+  // Log + push, fire-and-forget
+  avisar("click", btn.dataset.label, btn.dataset.secId, btn.dataset.tags);
 
   // Navegación directa dentro del gesto del usuario → Safari no bloquea popups
   if (extern || openExternal) {
