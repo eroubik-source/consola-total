@@ -357,6 +357,12 @@ function showApp() {
     const av = document.getElementById("user-avatar");
     if (currentUser.picture) { av.src = currentUser.picture; }
   }
+  // Ping de apertura de consola (fire-and-forget)
+  try {
+    fetch(CONFIG.TRACKER_BASE + "?go=1&beacon=1&ev=open&consola=total"
+      + "&u=" + encodeURIComponent(currentUser ? currentUser.email : ""),
+      { mode: "no-cors", keepalive: true });
+  } catch(err) {}
   render();
 }
 
@@ -511,7 +517,7 @@ document.getElementById("content").addEventListener("click", e => {
   const id = (btn.dataset.secId + "-" + label).toLowerCase()
     .replace(/[^a-z0-9]+/g,"-").slice(0,60);
 
-  const tracked = CONFIG.TRACKER_BASE + "?go=1&beacon=1"
+  const tracked = CONFIG.TRACKER_BASE + "?go=1&beacon=1&ev=click&consola=total"
     + "&id="      + encodeURIComponent(id)
     + "&url="     + encodeURIComponent(url)
     + "&label="   + encodeURIComponent(label)
