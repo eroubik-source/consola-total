@@ -236,7 +236,7 @@ const CONFIG = {
   GOOGLE_CLIENT_ID: "154544420704-oibq8s4k42898m5rb93e8ccoenv19m1e.apps.googleusercontent.com",
   LINKS_API: "https://script.google.com/macros/s/AKfycbzO-Ft1Ca7lTHr7BJaOkTKLS8S5tkeh3f57ECS6vFNQbq8xYZu0IAKe_NoiIGQWwPma/exec",  // ← URL /exec del deployment de ConsolaLinks.gs
   CONSOLA: "total",
-  CACHE_KEY: "consolatotal_v2",
+  CACHE_KEY: "consolatotal_v3",   // v3: cache con huella de catálogo
   CACHE_DIAS: 30,
 };
 
@@ -251,12 +251,41 @@ function restoreSession() {
     const saved = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || "null");
     if (saved && saved.user && saved.sections && saved.sections.length
         && (Date.now() - (saved.ts || 0)) < CONFIG.CACHE_DIAS * 864e5) {
-      STATE = { user: saved.user, sections: saved.sections, ntfy: saved.ntfy || null, tracker: saved.tracker || null };
+      STATE = { user: saved.user, sections: saved.sections, ntfy: saved.ntfy || null, tracker: saved.tracker || null, v: saved.v || null };
       showApp();
+      verificarVersion(saved.v || null);   // en segundo plano: ¿cambió el catálogo?
       return true;
     }
   } catch(e) {}
   return false;
+}
+
+/** Pregunta a ConsolaLinks la huella del catálogo. Si no calza con la de la
+    cache, la bota y pide login de nuevo (intenta hacerlo solo con Google). */
+async function verificarVersion(vLocal) {
+  try {
+    const r = await fetch(CONFIG.LINKS_API + "?v=" + Date.now(), { cache: "no-store" });
+    const data = await r.json();
+    if (!data.v || data.v === vLocal) return;          // al día (o servidor antiguo)
+    localStorage.removeItem(CONFIG.CACHE_KEY);
+    STATE = { user: null, sections: [], ntfy: null, tracker: null, v: null };
+    showAuth();
+    const errEl = document.getElementById("auth-error");
+    errEl.style.display = "block";
+    errEl.textContent = "🔄 Hay links nuevos. Entra de nuevo para cargarlos.";
+    loginSilencioso();
+  } catch(e) {}   // sin conexión: se queda con la cache
+}
+
+/** Intenta el login de Google sin clic (si ya autorizó antes en este equipo). */
+function loginSilencioso(intentos) {
+  intentos = intentos || 0;
+  if (typeof google === "undefined" || !google.accounts) {
+    if (intentos < 20) setTimeout(() => loginSilencioso(intentos + 1), 250);
+    return;
+  }
+  google.accounts.id.initialize({ client_id: CONFIG.GOOGLE_CLIENT_ID, callback: window.handleGoogleSignIn, ux_mode: "popup", auto_select: true });
+  google.accounts.id.prompt();   // si Google no lo muestra, queda el botón
 }
 
 /** Envía el token a ConsolaLinks; si el servidor lo valida, recibe los links. */
@@ -284,8 +313,9 @@ async function autenticar(token) {
     STATE.sections = data.sections || [];
     STATE.ntfy     = data.ntfy || null;
     STATE.tracker  = data.tracker || null;
+    STATE.v        = data.v || null;
     localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify({
-      user: STATE.user, sections: STATE.sections, ntfy: STATE.ntfy, tracker: STATE.tracker, ts: Date.now()
+      user: STATE.user, sections: STATE.sections, ntfy: STATE.ntfy, tracker: STATE.tracker, v: STATE.v, ts: Date.now()
     }));
     loadEl.style.display = "none";
     showApp();
